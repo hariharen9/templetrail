@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ItineraryPlan } from '@/types/temple'
 import { Calendar, MapPin, Clock, Navigation, Download, Share2, Star } from 'lucide-react'
+import ExportOptionsDialog from '@/components/export-options-dialog'
 
 interface ItinerarySummaryProps {
   itinerary: ItineraryPlan
@@ -35,11 +36,6 @@ export default function ItinerarySummary({ itinerary }: ItinerarySummaryProps) {
   const totalReviews = itinerary.days
     .flatMap(day => day.temples)
     .reduce((sum, temple) => sum + (temple.user_ratings_total || 0), 0)
-
-  const handleExport = () => {
-    // TODO: Implement PDF export
-    console.log('Export itinerary as PDF')
-  }
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -75,10 +71,12 @@ export default function ItinerarySummary({ itinerary }: ItinerarySummaryProps) {
               <Share2 className="h-4 w-4 mr-2" />
               Share
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <ExportOptionsDialog itinerary={itinerary}>
+              <Button variant="outline" size="sm" className="touch-manipulation">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </ExportOptionsDialog>
           </div>
         </div>
       </CardHeader>

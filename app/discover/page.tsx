@@ -1,17 +1,15 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react"
+import { useEffect, useCallback, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import MapPlaceholder from "@/components/map-placeholder"
 import TempleCard from "@/components/temple-card"
 import PlannerFooter from "@/components/planner-footer"
 import { getCoordsFromCity, getTemplesNearCoords } from "@/services/google-maps"
-import { Temple } from "@/types/temple"
 import { Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
-
-const DEFAULT_CENTER = { lat: 25.3176, lng: 82.9739 } // Default to Varanasi
+import { useDiscoverStore } from "@/stores/discover-store"
 
 export default function DiscoverPage() {
   const params = useSearchParams()
@@ -21,23 +19,41 @@ export default function DiscoverPage() {
   const lat = params.get("lat")
   const lng = params.get("lng")
 
-  const [loading, setLoading] = useState(true)
-  const [allTemples, setAllTemples] = useState<Temple[]>([])
-  const [center, setCenter] = useState(DEFAULT_CENTER)
-  const [bounds, setBounds] = useState<google.maps.LatLngBounds | undefined>()
-  const [selectedTempleId, setSelectedTempleId] = useState<string | null>(null)
-  const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER)
-  const [showSearchArea, setShowSearchArea] = useState(false)
-  const [searchingArea, setSearchingArea] = useState(false)
-
-  const [selected, setSelected] = useState<Record<string, boolean>>({})
-  const [days, setDays] = useState(3)
+  // Zustand store
+  const {
+    allTemples,
+    filteredTemples,
+    loading,
+    error,
+    center,
+    mapCenter,
+    bounds,
+    showSearchArea,
+    searchingArea,
+    selectedTempleId,
+    selectedTemples,
+    days,
+    setAllTemples,
+    setLoading,
+    setError,
+    setCenter,
+    setMapCenter,
+    setBounds,
+    setShowSearchArea,
+    setSearchingArea,
+    setSelectedTempleId,
+    toggleTempleSelection,
+    setCity,
+    setDays,
+    reset
+  } = useDiscoverStore()
 
   useEffect(() => {
     async function fetchTemples() {
       setLoading(true)
       setAllTemples([]) // Clear previous results
       setShowSearchArea(false) // Hide search area button on new search
+      setError(null)
       
       try {
         let coords: { lat: number; lng: number } | null = null
@@ -57,19 +73,23 @@ export default function DiscoverPage() {
         } else {
           console.warn('Could not get coordinates for:', city)
           setAllTemples([])
+          const errorMsg = `Unable to find coordinates for ${city}. Please try a different location.`
+          setError(errorMsg)
           toast({
             variant: "destructive",
             title: "Location Not Found",
-            description: `Unable to find coordinates for ${city}. Please try a different location.`,
+            description: errorMsg,
           })
         }
       } catch (error) {
         console.error('Error fetching temples:', error)
         setAllTemples([])
+        const errorMsg = "Unable to search for temples. Please check your connection and try again."
+        setError(errorMsg)
         toast({
           variant: "destructive",
           title: "Search Failed",
-          description: "Unable to search for temples. Please check your connection and try again.",
+          description: errorMsg,
         })
       } finally {
         setLoading(false)
@@ -77,9 +97,10 @@ export default function DiscoverPage() {
     }
 
     if (city) {
+      setCity(city)
       fetchTemples()
     }
-  }, [city, lat, lng])
+  }, [city, lat, lng, setLoading, setAllTemples, setShowSearchArea, setError, setCenter, setMapCenter, setCity, toast])
 
   // Separate cleanup effect for debounceRef
   useEffect(() => {
@@ -91,25 +112,8 @@ export default function DiscoverPage() {
     }
   }, [])
 
-  const list = useMemo(() => {
-    if (selectedTempleId) {
-      return allTemples.filter(t => t.id === selectedTempleId)
-    }
-    if (bounds) {
-      return allTemples.filter(t => {
-        const templeLatLng = new google.maps.LatLng(t.location.lat, t.location.lng);
-        return bounds.contains(templeLatLng);
-      });
-    }
-    return allTemples;
-  }, [allTemples, bounds, selectedTempleId]);
-
-  function toggle(id: string) {
-    setSelected((s) => ({ ...s, [id]: !s[id] }))
-  }
-
   function generate() {
-    const chosen = Object.keys(selected).filter(id => selected[id]);
+    const chosen = Object.keys(selectedTemples).filter(id => selectedTemples[id]);
     router.push(`/itinerary?city=${encodeURIComponent(city)}&days=${days}&temples=${chosen.join(",")}`)
   }
 
@@ -172,7 +176,7 @@ export default function DiscoverPage() {
     return R * c // Distance in km
   }
 
-  const selectedCount = Object.values(selected).filter(Boolean).length
+  const selectedCount = Object.values(selectedTemples).filter(Boolean).length
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6 safe-left safe-right safe-bottom">
@@ -186,7 +190,7 @@ export default function DiscoverPage() {
                 <h2 className="font-serif text-xl sm:text-2xl mobile-tight truncate">Temples in {city}</h2>
                 {!loading && (
                   <span className="temple-count-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
-                    {list.length}
+                    {filteredTemples.length}
                   </span>
                 )}
               </div>
@@ -265,17 +269,17 @@ export default function DiscoverPage() {
             ? Array.from({ length: 6 }).map((_, i) => (
                 <div key={`mobile-skeleton-${i}`} className="h-28 rounded-xl bg-muted animate-pulse" />
               ))
-            : list.map((t, i) => (
+            : filteredTemples.map((t, i) => (
                 <div
                   key={t.id}
                   className="opacity-0 translate-y-3"
                   style={{ animation: `fade-slide-up 500ms ${120 * i}ms forwards cubic-bezier(.2,.8,.2,1)` }}
                 >
-                  <TempleCard temple={t} selected={!!selected[t.id]} onToggle={toggle} />
+                  <TempleCard temple={t} selected={!!selectedTemples[t.id]} onToggle={toggleTempleSelection} />
                 </div>
               ))}
           
-          {!loading && list.length === 0 && (
+          {!loading && filteredTemples.length === 0 && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No temples found in this area</p>
               <p className="text-sm text-muted-foreground mt-1">Try moving the map or searching a different location</p>
@@ -342,7 +346,7 @@ export default function DiscoverPage() {
                 <h2 className="font-serif text-2xl">Temples in {city}</h2>
                 {!loading && (
                   <span className="temple-count-badge inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium">
-                    {list.length} found
+                    {filteredTemples.length} found
                   </span>
                 )}
               </div>
@@ -367,13 +371,13 @@ export default function DiscoverPage() {
               ? Array.from({ length: 6 }).map((_, i) => (
                   <div key={`desktop-skeleton-${i}`} className="h-28 rounded-lg bg-muted animate-pulse" />
                 ))
-              : list.map((t, i) => (
+              : filteredTemples.map((t, i) => (
                   <div
                     key={t.id}
                     className="opacity-0 translate-y-3"
                     style={{ animation: `fade-slide-up 500ms ${120 * i}ms forwards cubic-bezier(.2,.8,.2,1)` }}
                   >
-                    <TempleCard temple={t} selected={!!selected[t.id]} onToggle={toggle} />
+                    <TempleCard temple={t} selected={!!selectedTemples[t.id]} onToggle={toggleTempleSelection} />
                   </div>
                 ))}
           </div>

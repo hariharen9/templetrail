@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,7 @@ import ItineraryMap from "@/components/itinerary-map"
 import { ArrowLeft, MapIcon, Calendar, Loader2, AlertCircle, Info, Settings, X, Clock, Users } from "lucide-react"
 import { motion } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
+import { useItineraryStore } from "@/stores/itinerary-store"
 
 export default function ItineraryPage() {
   const params = useSearchParams()
