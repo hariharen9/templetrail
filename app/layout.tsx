@@ -10,6 +10,7 @@ import ChunkErrorHandler from "@/components/chunk-error-handler"
 import PWAInstallPrompt from "@/components/pwa-install-prompt"
 import NetworkStatus from "@/components/network-status"
 import { Toaster } from "@/components/ui/toaster"
+import { SiteFooter } from "@/components/site-footer"
 import { Suspense } from "react"
 
 const playfair = Playfair_Display({
@@ -105,7 +106,12 @@ export default function RootLayout({
         }>
           <Navbar />
           <NetworkStatus />
-          <TransitionProvider>{children}</TransitionProvider>
+          <div className="min-h-screen flex flex-col">
+            <div className="flex-1">
+              <TransitionProvider>{children}</TransitionProvider>
+            </div>
+            <SiteFooter />
+          </div>
           <PWAInstallPrompt />
           <Toaster />
           <Analytics />
