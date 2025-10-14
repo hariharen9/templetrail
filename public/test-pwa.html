@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Test - TempleTrail</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-item {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .pass { background: #d4edda; border-color: #c3e6cb; }
+        .fail { background: #f8d7da; border-color: #f5c6cb; }
+        .info { background: #d1ecf1; border-color: #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>TempleTrail PWA Test Suite</h1>
+    <p>This page tests PWA functionality for TempleTrail.</p>
+    
+    <div id="test-results"></div>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="runTests()">Run Tests</button>
+        <button onclick="testInstallPrompt()">Test Install Prompt</button>
+        <button onclick="testOfflineMode()">Test Offline Mode</button>
+    </div>
+
+    <script>
+        function addTestResult(name, status, message) {
+            const results = document.getElementById('test-results');
+            const div = document.createElement('div');
+            div.className = `test-item ${status}`;
+            div.innerHTML = `<strong>${name}:</strong> ${message}`;
+            results.appendChild(div);
+        }
+
+        function runTests() {
+            document.getElementById('test-results').innerHTML = '';
+            
+            // Test 1: Service Worker
+            if ('serviceWorker' in navigator) {
+                addTestResult('Service Worker', 'pass', 'Service Worker API is supported');
+                
+                navigator.serviceWorker.getRegistration().then(registration => {
+                    if (registration) {
+                        addTestResult('SW Registration', 'pass', 'Service Worker is registered');
+                    } else {
+                        addTestResult('SW Registration', 'fail', 'Service Worker is not registered');
+                    }
+                });
+            } else {
+                addTestResult('Service Worker', 'fail', 'Service Worker API is not supported');
+            }
+
+            // Test 2: Manifest
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+                addTestResult('Web App Manifest', 'pass', 'Manifest link found');
+                
+                fetch('/manifest.json')
+                    .then(response => response.json())
+                    .then(manifest => {
+                        addTestResult('Manifest Content', 'pass', `App name: ${manifest.name}`);
+                        addTestResult('Icons', manifest.icons && manifest.icons.length > 0 ? 'pass' : 'fail', 
+                            `${manifest.icons ? manifest.icons.length : 0} icons defined`);
+                    })
+                    .catch(() => {
+                        addTestResult('Manifest Content', 'fail', 'Could not fetch manifest.json');
+                    });
+            } else {
+                addTestResult('Web App Manifest', 'fail', 'No manifest link found');
+            }
+
+            // Test 3: HTTPS
+            if (location.protocol === 'https:' || location.hostname === 'localhost') {
+                addTestResult('HTTPS', 'pass', 'Running on secure connection');
+            } else {
+                addTestResult('HTTPS', 'fail', 'Not running on HTTPS (required for PWA)');
+            }
+
+            // Test 4: Viewport Meta Tag
+            const viewport = document.querySelector('meta[name="viewport"]');
+            if (viewport) {
+                addTestResult('Viewport Meta', 'pass', 'Viewport meta tag found');
+            } else {
+                addTestResult('Viewport Meta', 'fail', 'Viewport meta tag missing');
+            }
+
+            // Test 5: Theme Color
+            const themeColor = document.querySelector('meta[name="theme-color"]');
+            if (themeColor) {
+                addTestResult('Theme Color', 'pass', `Theme color: ${themeColor.content}`);
+            } else {
+                addTestResult('Theme Color', 'info', 'Theme color not set');
+            }
+
+            // Test 6: Apple Touch Icon
+            const appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+            if (appleIcon) {
+                addTestResult('Apple Touch Icon', 'pass', 'Apple touch icon found');
+            } else {
+                addTestResult('Apple Touch Icon', 'info', 'Apple touch icon not found');
+            }
+
+            // Test 7: Network Status
+            addTestResult('Network Status', navigator.onLine ? 'pass' : 'info', 
+                navigator.onLine ? 'Online' : 'Offline');
+
+            // Test 8: Cache API
+            if ('caches' in window) {
+                addTestResult('Cache API', 'pass', 'Cache API is supported');
+                
+                caches.keys().then(cacheNames => {
+                    addTestResult('Cache Storage', cacheNames.length > 0 ? 'pass' : 'info', 
+                        `${cacheNames.length} caches found: ${cacheNames.join(', ')}`);
+                });
+            } else {
+                addTestResult('Cache API', 'fail', 'Cache API is not supported');
+            }
+        }
+
+        function testInstallPrompt() {
+            addTestResult('Install Prompt', 'info', 'Check if install prompt appears (may take a few seconds)');
+            
+            // Simulate beforeinstallprompt event for testing
+            if (window.deferredPrompt) {
+                addTestResult('Install Prompt', 'pass', 'Install prompt is available');
+            } else {
+                addTestResult('Install Prompt', 'info', 'Install prompt not available (may already be installed)');
+            }
+        }
+
+        function testOfflineMode() {
+            addTestResult('Offline Test', 'info', 'Testing offline functionality...');
+            
+            // Test cache functionality
+            if ('caches' in window) {
+                caches.match('/').then(response => {
+                    if (response) {
+                        addTestResult('Offline Cache', 'pass', 'Homepage is cached for offline use');
+                    } else {
+                        addTestResult('Offline Cache', 'info', 'Homepage not in cache yet');
+                    }
+                });
+            }
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 1000);
+        });
+
+        // Listen for network status changes
+        window.addEventListener('online', () => {
+            addTestResult('Network Change', 'pass', 'Back online');
+        });
+
+        window.addEventListener('offline', () => {
+            addTestResult('Network Change', 'info', 'Gone offline');
+        });
+    </script>
+</body>
+</html>
