@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import MapPlaceholder from "@/components/map-placeholder"
 import TempleCard from "@/components/temple-card"
 import PlannerFooter from "@/components/planner-footer"
+import { TempleSearch } from "@/components/temple-search"
 import { getCoordsFromCity, getTemplesNearCoords } from "@/services/google-maps"
 import { Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -183,7 +184,7 @@ export default function DiscoverPage() {
       {/* Mobile-first layout */}
       <div className="block lg:hidden">
         {/* Mobile Header */}
-        <header className="mb-4">
+        <header className="mb-4 space-y-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -212,6 +213,9 @@ export default function DiscoverPage() {
               </button>
             )}
           </div>
+          
+          {/* Temple Search Bar */}
+          <TempleSearch />
         </header>
 
         {/* Mobile Map */}
@@ -340,30 +344,35 @@ export default function DiscoverPage() {
         </div>
 
         <div className="lg:col-span-5">
-          <header className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="font-serif text-2xl">Temples in {city}</h2>
-                {!loading && (
-                  <span className="temple-count-badge inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium">
-                    {filteredTemples.length} found
-                  </span>
-                )}
+          <header className="mb-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h2 className="font-serif text-2xl">Temples in {city}</h2>
+                  {!loading && (
+                    <span className="temple-count-badge inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium">
+                      {filteredTemples.length} found
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selectedTempleId 
+                    ? "Showing selected temple" 
+                    : showSearchArea 
+                      ? "Showing temples in current view • Move map to explore more areas"
+                      : "Showing temples in map view"
+                  }
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {selectedTempleId 
-                  ? "Showing selected temple" 
-                  : showSearchArea 
-                    ? "Showing temples in current view • Move map to explore more areas"
-                    : "Showing temples in map view"
-                }
-              </p>
+              {selectedTempleId && (
+                <button onClick={() => setSelectedTempleId(null)} className="text-sm font-semibold text-primary hover:underline touch-manipulation">
+                  Clear Selection
+                </button>
+              )}
             </div>
-            {selectedTempleId && (
-              <button onClick={() => setSelectedTempleId(null)} className="text-sm font-semibold text-primary hover:underline touch-manipulation">
-                Clear Selection
-              </button>
-            )}
+            
+            {/* Temple Search Bar */}
+            <TempleSearch />
           </header>
 
           <div className="space-y-3 h-[calc(100dvh-168px)] lg:h-[calc(100dvh-160px)] overflow-auto pr-1">

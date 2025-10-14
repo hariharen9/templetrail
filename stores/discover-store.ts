@@ -19,6 +19,7 @@ interface DiscoverState {
   // Selection state
   selectedTempleId: string | null
   selectedTemples: Record<string, boolean>
+  manuallyAddedTemples: Set<string> // Track temples added via search
   
   // Search state
   city: string
@@ -26,6 +27,7 @@ interface DiscoverState {
   
   // Actions
   setAllTemples: (temples: Temple[]) => void
+  addManualTemple: (temple: Temple) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   setCenter: (center: { lat: number; lng: number }) => void
@@ -58,6 +60,7 @@ export const useDiscoverStore = create<DiscoverState>()(
       searchingArea: false,
       selectedTempleId: null,
       selectedTemples: {},
+      manuallyAddedTemples: new Set<string>(),
       city: 'Varanasi',
       days: 3,
 
@@ -74,6 +77,25 @@ export const useDiscoverStore = create<DiscoverState>()(
                 })
               : temples
         }), false, 'setAllTemples'),
+
+      addManualTemple: (temple) =>
+        set((state) => {
+          const newManuallyAdded = new Set(state.manuallyAddedTemples)
+          newManuallyAdded.add(temple.id)
+          
+          return {
+            allTemples: [...state.allTemples, temple],
+            manuallyAddedTemples: newManuallyAdded,
+            filteredTemples: state.selectedTempleId 
+              ? [...state.allTemples, temple].filter(t => t.id === state.selectedTempleId)
+              : state.bounds 
+                ? [...state.allTemples, temple].filter(t => {
+                    const templeLatLng = new google.maps.LatLng(t.location.lat, t.location.lng)
+                    return state.bounds?.contains(templeLatLng)
+                  })
+                : [...state.allTemples, temple]
+          }
+        }, false, 'addManualTemple'),
 
       setLoading: (loading) => set({ loading }, false, 'setLoading'),
       
@@ -134,6 +156,7 @@ export const useDiscoverStore = create<DiscoverState>()(
         error: null,
         selectedTempleId: null,
         selectedTemples: {},
+        manuallyAddedTemples: new Set<string>(),
         showSearchArea: false,
         searchingArea: false,
       }, false, 'reset'),

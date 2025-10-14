@@ -22,11 +22,10 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': API_KEY,
-          'X-Goog-FieldMask': 'suggestions.placePrediction.place,suggestions.placePrediction.placeId,suggestions.placePrediction.text'
+          'X-Goog-FieldMask': 'suggestions.placePrediction.place,suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types'
         },
         body: JSON.stringify({
           input: input,
-          includedPrimaryTypes: ['locality', 'administrative_area_level_1', 'country'],
           languageCode: 'en'
         })
       })
@@ -43,7 +42,8 @@ export async function GET(request: NextRequest) {
               structured_formatting: {
                 main_text: suggestion.placePrediction.text.text.split(',')[0],
                 secondary_text: suggestion.placePrediction.text.text.split(',').slice(1).join(',').trim()
-              }
+              },
+              types: suggestion.placePrediction.types || []
             }))
           
           return NextResponse.json({ predictions })
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fallback to legacy Places API
-    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=(cities)&key=${API_KEY}`
+    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${API_KEY}`
     
     const response = await fetch(url)
     const data = await response.json()
@@ -64,7 +64,8 @@ export async function GET(request: NextRequest) {
         predictions: data.predictions.map((prediction: any) => ({
           place_id: prediction.place_id,
           description: prediction.description,
-          structured_formatting: prediction.structured_formatting
+          structured_formatting: prediction.structured_formatting,
+          types: prediction.types || []
         }))
       })
     } else {
