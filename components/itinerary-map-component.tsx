@@ -8,9 +8,13 @@ import { useToast } from '@/hooks/use-toast'
 interface ItineraryMapComponentProps {
   itinerary: ItineraryPlan
   selectedDay?: number
+  accommodation?: {
+    name: string
+    geometry: { location: { lat: number; lng: number } }
+  }
 }
 
-function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
+function MapController({ itinerary, selectedDay, accommodation }: ItineraryMapComponentProps) {
   const map = useMap()
   const { toast } = useToast()
   const [polylines, setPolylines] = useState<google.maps.Polyline[]>([])
@@ -44,6 +48,11 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
       }
     })
 
+    // Include accommodation in bounds if available
+    if (accommodation && accommodation.geometry && accommodation.geometry.location) {
+      bounds.extend(new google.maps.LatLng(accommodation.geometry.location.lat, accommodation.geometry.location.lng))
+    }
+
     // Only fit bounds if we have valid bounds
     if (!bounds.isEmpty()) {
       map.fitBounds(bounds)
@@ -60,15 +69,21 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
           return
         }
         
+        // Use green color for accommodation routes
+        const isAccommodationRoute = from.id === 'accommodation' || to.id === 'accommodation'
+        const strokeColor = isAccommodationRoute 
+          ? '#16a34a' // Green for accommodation routes
+          : selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`
+        
         const polyline = new google.maps.Polyline({
           path: [
             new google.maps.LatLng(from.location.lat, from.location.lng),
             new google.maps.LatLng(to.location.lat, to.location.lng)
           ],
           geodesic: true,
-          strokeColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`,
-          strokeOpacity: 0.8,
-          strokeWeight: 4,
+          strokeColor: strokeColor,
+          strokeOpacity: isAccommodationRoute ? 0.9 : 0.8,
+          strokeWeight: isAccommodationRoute ? 5 : 4,
           map: map
         })
         newPolylines.push(polyline)
@@ -78,8 +93,15 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
     }
 
     daysToShow.forEach((day, dayIndex) => {
-      if (!day || !day.temples || day.temples.length <= 1) {
-        return // Skip days with no temples or single temple
+      if (!day || !day.temples || day.temples.length === 0) {
+        return // Skip days with no temples
+      }
+      
+      console.log(`Day ${day.day}: ${day.routes?.length || 0} routes, ${day.temples.length} temples`)
+      if (day.routes) {
+        day.routes.forEach((route, i) => {
+          console.log(`  Route ${i}: ${route.from.name} → ${route.to.name}`)
+        })
       }
       
       // Check if we have route polylines from the Routes API
@@ -93,12 +115,19 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
               // Check if geometry library is available
               if (google.maps.geometry && google.maps.geometry.encoding) {
                 const decodedPath = google.maps.geometry.encoding.decodePath(route.polyline)
+                
+                // Use green color for accommodation routes, regular color for temple routes
+                const isAccommodationRoute = route.from.id === 'accommodation' || route.to.id === 'accommodation'
+                const strokeColor = isAccommodationRoute 
+                  ? '#16a34a' // Green for accommodation routes
+                  : selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`
+                
                 const polyline = new google.maps.Polyline({
                   path: decodedPath,
                   geodesic: true,
-                  strokeColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`,
-                  strokeOpacity: 0.8,
-                  strokeWeight: 4,
+                  strokeColor: strokeColor,
+                  strokeOpacity: isAccommodationRoute ? 0.9 : 0.8,
+                  strokeWeight: isAccommodationRoute ? 5 : 4,
                   map: map
                 })
                 newPolylines.push(polyline)
@@ -121,26 +150,34 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
               createSimpleLine(route.from, route.to, dayIndex)
             }
           } else {
-            // Fallback to simple line
+            // Fallback to simple line (this will handle accommodation routes without polylines)
             createSimpleLine(route.from, route.to, dayIndex)
           }
         })
       } else {
-        // Fallback: Create simple connecting lines
-        const path = day.temples.map(temple => 
-          new google.maps.LatLng(temple.location.lat, temple.location.lng)
-        )
+        // Fallback: Use route data if available, otherwise create simple connecting lines
+        if (day.routes && day.routes.length > 0) {
+          // Use the route data to create simple lines (includes accommodation routes)
+          day.routes.forEach(route => {
+            createSimpleLine(route.from, route.to, dayIndex)
+          })
+        } else {
+          // Last resort: Create simple connecting lines between temples only
+          const path = day.temples.map(temple => 
+            new google.maps.LatLng(temple.location.lat, temple.location.lng)
+          )
 
-        const polyline = new google.maps.Polyline({
-          path: path,
-          geodesic: true,
-          strokeColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`,
-          strokeOpacity: 0.8,
-          strokeWeight: 4,
-          map: map
-        })
+          const polyline = new google.maps.Polyline({
+            path: path,
+            geodesic: true,
+            strokeColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`,
+            strokeOpacity: 0.8,
+            strokeWeight: 4,
+            map: map
+          })
 
-        newPolylines.push(polyline)
+          newPolylines.push(polyline)
+        }
       }
     })
 
@@ -156,7 +193,7 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
   return null
 }
 
-export default function ItineraryMapComponent({ itinerary, selectedDay }: ItineraryMapComponentProps) {
+export default function ItineraryMapComponent({ itinerary, selectedDay, accommodation }: ItineraryMapComponentProps) {
   if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
     return <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
       <span className="text-muted-foreground">Google Maps API Key is missing</span>
@@ -223,7 +260,25 @@ export default function ItineraryMapComponent({ itinerary, selectedDay }: Itiner
             )
           }) : []
         )}
-        <MapController itinerary={itinerary} selectedDay={selectedDay} />
+        
+        {/* Accommodation Marker */}
+        {accommodation && accommodation.geometry && accommodation.geometry.location && (
+          <AdvancedMarker
+            key="accommodation"
+            position={accommodation.geometry.location}
+          >
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg bg-green-600 border-2 border-white">
+                🏨
+              </div>
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 px-2 py-1 bg-green-600 text-white text-xs rounded whitespace-nowrap">
+                {accommodation.name}
+              </div>
+            </div>
+          </AdvancedMarker>
+        )}
+        
+        <MapController itinerary={itinerary} selectedDay={selectedDay} accommodation={accommodation} />
       </GoogleMap>
     </APIProvider>
   )

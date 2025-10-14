@@ -78,6 +78,25 @@ export default function ItineraryDayCard({ day, isExpanded = false, onToggleExpa
           >
             <CardContent className="pt-0">
               <div className="space-y-4">
+                {/* Starting from Accommodation */}
+                {(() => {
+                  const accommodationRoute = day.routes.find(route => route.from.id === 'accommodation')
+                  if (accommodationRoute) {
+                    return (
+                      <div className="flex items-center justify-center py-2">
+                        <div className="flex items-center gap-3 px-4 py-2 bg-green-100 dark:bg-green-900/20 rounded-full text-sm border border-green-200 dark:border-green-800">
+                          <span className="text-green-700 dark:text-green-300">🏨 Start from {accommodationRoute.from.name}</span>
+                          <Navigation className="h-4 w-4 text-green-600" />
+                          <span className="font-medium text-green-700 dark:text-green-300">{accommodationRoute.distance.text}</span>
+                          <span className="text-green-600">•</span>
+                          <span className="text-green-600">{accommodationRoute.duration.text}</span>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+
                 {day.temples.map((temple, index) => (
                   <div key={temple.id} className="relative">
                     {/* Temple Card */}
@@ -145,19 +164,53 @@ export default function ItineraryDayCard({ day, isExpanded = false, onToggleExpa
                       </div>
                     </div>
 
-                    {/* Route to Next Temple */}
-                    {index < day.routes.length && (
-                      <div className="flex items-center justify-center py-3">
-                        <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 rounded-full text-sm">
-                          <Navigation className="h-4 w-4 text-primary" />
-                          <span className="font-medium">{day.routes[index].distance.text}</span>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-muted-foreground">{day.routes[index].duration.text}</span>
-                        </div>
-                      </div>
-                    )}
+                    {/* Route to Next Destination */}
+                    {(() => {
+                      // Find the route that starts from this temple
+                      const routeFromThisTemple = day.routes.find(route => 
+                        route.from.id === temple.id || 
+                        (route.from.name === temple.name && route.from.location.lat === temple.location.lat)
+                      )
+                      
+                      if (routeFromThisTemple) {
+                        return (
+                          <div className="flex items-center justify-center py-3">
+                            <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 rounded-full text-sm">
+                              <Navigation className="h-4 w-4 text-primary" />
+                              <span className="font-medium">{routeFromThisTemple.distance.text}</span>
+                              <span className="text-muted-foreground">•</span>
+                              <span className="text-muted-foreground">{routeFromThisTemple.duration.text}</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="text-xs">
+                                {routeFromThisTemple.to.id === 'accommodation' ? '🏨' : routeFromThisTemple.to.name}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 ))}
+
+                {/* Return to Accommodation */}
+                {(() => {
+                  const returnRoute = day.routes.find(route => route.to.id === 'accommodation')
+                  if (returnRoute) {
+                    return (
+                      <div className="flex items-center justify-center py-2">
+                        <div className="flex items-center gap-3 px-4 py-2 bg-green-100 dark:bg-green-900/20 rounded-full text-sm border border-green-200 dark:border-green-800">
+                          <span className="text-green-700 dark:text-green-300">Return to 🏨 {returnRoute.to.name}</span>
+                          <Navigation className="h-4 w-4 text-green-600" />
+                          <span className="font-medium text-green-700 dark:text-green-300">{returnRoute.distance.text}</span>
+                          <span className="text-green-600">•</span>
+                          <span className="text-green-600">{returnRoute.duration.text}</span>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
 
                 {/* Day Summary */}
                 <div className="mt-6 p-4 bg-muted/30 rounded-lg">

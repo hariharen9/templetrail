@@ -8,6 +8,10 @@ interface ItineraryMapProps {
   itinerary: ItineraryPlan
   selectedDay?: number
   height?: string
+  accommodation?: {
+    name: string
+    geometry: { location: { lat: number; lng: number } }
+  } | null
 }
 
 const ItineraryMapComponent = dynamic(() => import('./itinerary-map-component'), {
@@ -17,12 +21,13 @@ const ItineraryMapComponent = dynamic(() => import('./itinerary-map-component'),
   ssr: false,
 })
 
-export default function ItineraryMap({ itinerary, selectedDay, height = "400px" }: ItineraryMapProps) {
+export default function ItineraryMap({ itinerary, selectedDay, height = "400px", accommodation }: ItineraryMapProps) {
   return (
     <div style={{ height }} className="w-full rounded-lg overflow-hidden">
       <ItineraryMapComponent 
         itinerary={itinerary} 
         selectedDay={selectedDay}
+        accommodation={accommodation}
       />
     </div>
   )

@@ -13,10 +13,10 @@ import { ItineraryPlan } from "@/types/temple"
 import ItinerarySummary from "@/components/itinerary-summary"
 import ItineraryDayCard from "@/components/itinerary-day-card"
 import ItineraryMap from "@/components/itinerary-map"
-import { ArrowLeft, MapIcon, Calendar, Loader2, AlertCircle, Info, Settings, X, Clock, Users } from "lucide-react"
+import { ArrowLeft, MapIcon, Calendar, Loader2, AlertCircle, Info, Settings, X, Clock, Users, MapPin } from "lucide-react"
 import { motion } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
-import { useItineraryStore } from "@/stores/itinerary-store"
+import AccommodationSelector from "@/components/accommodation-selector"
 
 export default function ItineraryPage() {
   const params = useSearchParams()
@@ -38,6 +38,12 @@ export default function ItineraryPage() {
   const [fixedEndTime, setFixedEndTime] = useState('18:00')
   const [showSettings, setShowSettings] = useState(false)
   
+  // Accommodation selection - disabled for now to fix the blocking issue
+  const [showAccommodationSelector, setShowAccommodationSelector] = useState(false)
+  const [selectedAccommodation, setSelectedAccommodation] = useState<any>(null)
+  const [accommodationSelectionComplete, setAccommodationSelectionComplete] = useState(true)
+
+  
   // Temporary settings for the panel (not applied until "Done" is clicked)
   const [tempClusteringStrategy, setTempClusteringStrategy] = useState(clusteringStrategy)
   const [tempCustomDays, setTempCustomDays] = useState(customDays)
@@ -48,12 +54,23 @@ export default function ItineraryPage() {
   // Memoize templeIds array to prevent unnecessary re-renders
   const memoizedTempleIds = useMemo(() => templeIds, [templeIds.join(",")])
 
+
+
   useEffect(() => {
     if (memoizedTempleIds.length === 0) {
       setError("No temples selected for itinerary")
       setLoading(false)
       return
     }
+
+    // Don't generate itinerary until accommodation selection is complete
+    if (showAccommodationSelector && !accommodationSelectionComplete) {
+      console.log('Waiting for accommodation selection...')
+      setLoading(false)
+      return
+    }
+    
+    console.log('Accommodation selection complete, proceeding with itinerary generation')
 
     async function createItinerary() {
       setLoading(true)
@@ -76,11 +93,20 @@ export default function ItineraryPage() {
         })
 
         // Generate advanced itinerary with selected strategy and custom settings
+        console.log('Generating itinerary with accommodation:', selectedAccommodation)
+        console.log('Accommodation structure:', selectedAccommodation ? {
+          name: selectedAccommodation.name,
+          hasGeometry: !!selectedAccommodation.geometry,
+          hasLocation: !!selectedAccommodation.geometry?.location,
+          lat: selectedAccommodation.geometry?.location?.lat,
+          lng: selectedAccommodation.geometry?.location?.lng
+        } : 'null')
+        
         const plan = await generateAdvancedItinerary(temples, customDays, city, clusteringStrategy, {
           startTime,
           endTimePreference: endTimePreference as 'flexible' | 'fixed',
           fixedEndTime
-        })
+        }, selectedAccommodation || undefined)
         console.log("Generated itinerary plan:", plan)
         
         setItinerary(plan)
@@ -90,6 +116,12 @@ export default function ItineraryPage() {
         })
       } catch (error) {
         console.error("Failed to generate itinerary:", error)
+        console.error("Error details:", {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          templeCount: memoizedTempleIds.length,
+          accommodation: selectedAccommodation ? 'Selected' : 'None'
+        })
         const errorMessage = error instanceof Error ? error.message : "Failed to generate itinerary"
         setError(errorMessage)
         toast({
@@ -103,7 +135,7 @@ export default function ItineraryPage() {
     }
 
     createItinerary()
-  }, [memoizedTempleIds, customDays, city, clusteringStrategy, startTime, endTimePreference, fixedEndTime])
+  }, [memoizedTempleIds, customDays, city, clusteringStrategy, startTime, endTimePreference, fixedEndTime, selectedAccommodation, accommodationSelectionComplete])
 
   const toggleDayExpansion = (dayNumber: number) => {
     const newExpanded = new Set(expandedDays)
@@ -209,8 +241,104 @@ export default function ItineraryPage() {
     )
   }
 
+  // Function to regenerate itinerary with accommodation
+  const regenerateItineraryWithAccommodation = async (accommodation: any) => {
+    if (memoizedTempleIds.length === 0) return
+    
+    setLoading(true)
+    setError(null)
+    
+    try {
+      console.log(`Regenerating itinerary with accommodation:`, accommodation)
+      
+      // Fetch temple details
+      const temples = await getTemplesByIds(memoizedTempleIds)
+      console.log(`Fetched ${temples.length} temple details for regeneration`)
+      
+      if (temples.length === 0) {
+        throw new Error("Could not fetch temple details")
+      }
+
+      toast({
+        title: "Regenerating Itinerary",
+        description: `Creating your ${customDays}-day journey with ${accommodation.name} as start/end point...`,
+      })
+
+      // Generate advanced itinerary with accommodation
+      const plan = await generateAdvancedItinerary(temples, customDays, city, clusteringStrategy, {
+        startTime,
+        endTimePreference: endTimePreference as 'flexible' | 'fixed',
+        fixedEndTime
+      }, accommodation)
+      
+      console.log("Regenerated itinerary plan with accommodation:", plan)
+      
+      setItinerary(plan)
+      toast({
+        title: "Itinerary Updated!",
+        description: `Your ${customDays}-day journey now starts and ends at ${accommodation.name}`,
+      })
+    } catch (error) {
+      console.error("Failed to regenerate itinerary with accommodation:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to regenerate itinerary"
+      setError(errorMessage)
+      toast({
+        variant: "destructive",
+        title: "Regeneration Failed",
+        description: errorMessage,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAccommodationSelect = (accommodation: any) => {
+    console.log('Accommodation selected:', accommodation)
+    setShowAccommodationSelector(false)
+    setAccommodationSelectionComplete(true)
+    
+    if (accommodation) {
+      // Set accommodation state and regenerate immediately
+      setSelectedAccommodation(accommodation)
+      toast({
+        title: "Accommodation Selected",
+        description: `Regenerating itinerary with ${accommodation.name} as start/end point`,
+      })
+      
+      // Regenerate immediately with the accommodation
+      regenerateItineraryWithAccommodation(accommodation)
+    } else {
+      console.log('No accommodation provided')
+      setSelectedAccommodation(null)
+      toast({
+        title: "No Accommodation",
+        description: "Your itinerary will be optimized without a fixed start/end point",
+      })
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background safe-top safe-bottom">
+      {/* Accommodation Selector Modal */}
+      <AccommodationSelector
+        isOpen={showAccommodationSelector}
+        onClose={() => {
+          setShowAccommodationSelector(false)
+          setAccommodationSelectionComplete(true)
+          // If user closes without selecting, treat as "skip"
+          if (selectedAccommodation === null) {
+            setSelectedAccommodation(null)
+            toast({
+              title: "No Accommodation",
+              description: "Your itinerary will be optimized without a fixed start/end point",
+            })
+          }
+        }}
+        onSelect={handleAccommodationSelect}
+        city={city}
+      />
+
+
       {/* Header */}
       <div className="border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 py-4 safe-left safe-right">
@@ -225,6 +353,25 @@ export default function ItineraryPage() {
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">Back</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowAccommodationSelector(true)}
+                className="flex items-center gap-2 touch-manipulation"
+              >
+                <MapPin className="h-4 w-4" />
+                {selectedAccommodation ? (
+                  <>
+                    <span className="hidden sm:inline">{selectedAccommodation.name}</span>
+                    <span className="sm:hidden">Hotel</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">Add Stay</span>
+                    <span className="sm:hidden">Stay</span>
+                  </>
+                )}
               </Button>
               <Button 
                 variant="outline" 
@@ -245,6 +392,7 @@ export default function ItineraryPage() {
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 {itinerary.city} • {itinerary.totalTemples} temples
+                {selectedAccommodation && ` • Starting from ${selectedAccommodation.name}`}
               </p>
             </div>
           </div>
@@ -267,10 +415,20 @@ export default function ItineraryPage() {
                 </h1>
                 <p className="text-muted-foreground">
                   {itinerary.city} • {itinerary.totalTemples} temples • {startTime} start • {clusteringStrategy} strategy
+                  {selectedAccommodation && ` • From ${selectedAccommodation.name}`}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowAccommodationSelector(true)}
+                className="flex items-center gap-2 touch-manipulation"
+              >
+                <MapPin className="h-4 w-4" />
+                {selectedAccommodation ? selectedAccommodation.name : 'Add Accommodation'}
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -553,7 +711,7 @@ export default function ItineraryPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <ItinerarySummary itinerary={itinerary} />
+              <ItinerarySummary itinerary={itinerary} accommodation={selectedAccommodation} />
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -581,7 +739,7 @@ export default function ItineraryPage() {
                 className="space-y-4"
               >
                 <h3 className="font-serif text-xl">Route Overview</h3>
-                <ItineraryMap itinerary={itinerary} height="600px" />
+                <ItineraryMap itinerary={itinerary} height="600px" accommodation={selectedAccommodation} />
               </motion.div>
             </div>
           </TabsContent>
@@ -631,6 +789,7 @@ export default function ItineraryPage() {
                   itinerary={itinerary} 
                   selectedDay={selectedDay}
                   height="500px" 
+                  accommodation={selectedAccommodation}
                 />
               </div>
             </div>
@@ -665,6 +824,7 @@ export default function ItineraryPage() {
                 itinerary={itinerary} 
                 selectedDay={selectedDay}
                 height="calc(100vh - 200px)" 
+                accommodation={selectedAccommodation}
               />
             </div>
           </TabsContent>

@@ -9,9 +9,14 @@ import ExportOptionsDialog from '@/components/export-options-dialog'
 
 interface ItinerarySummaryProps {
   itinerary: ItineraryPlan
+  accommodation?: {
+    name: string
+    formatted_address?: string
+    rating?: number
+  } | null
 }
 
-export default function ItinerarySummary({ itinerary }: ItinerarySummaryProps) {
+export default function ItinerarySummary({ itinerary, accommodation }: ItinerarySummaryProps) {
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
@@ -165,6 +170,33 @@ export default function ItinerarySummary({ itinerary }: ItinerarySummaryProps) {
               <li>• Check temple opening hours before visiting</li>
             </ul>
           </div>
+
+          {/* Accommodation Information */}
+          {accommodation && (
+            <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+              <h5 className="font-semibold mb-2 text-green-900 dark:text-green-100 flex items-center gap-2">
+                🏨 Your Accommodation
+              </h5>
+              <div className="space-y-2">
+                <p className="font-medium text-green-800 dark:text-green-200">
+                  {accommodation.name}
+                </p>
+                {accommodation.formatted_address && (
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    📍 {accommodation.formatted_address}
+                  </p>
+                )}
+                {accommodation.rating && (
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    ⭐ {accommodation.rating} rating
+                  </p>
+                )}
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  All daily routes start and end at your accommodation
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
