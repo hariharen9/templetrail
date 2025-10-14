@@ -3,6 +3,7 @@
 import { APIProvider, Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps'
 import { ItineraryPlan } from '@/types/temple'
 import { useEffect, useState } from 'react'
+import { useToast } from '@/hooks/use-toast'
 
 interface ItineraryMapComponentProps {
   itinerary: ItineraryPlan
@@ -11,6 +12,7 @@ interface ItineraryMapComponentProps {
 
 function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
   const map = useMap()
+  const { toast } = useToast()
   const [polylines, setPolylines] = useState<google.maps.Polyline[]>([])
 
   useEffect(() => {
@@ -26,27 +28,70 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
     
     const daysToShow = selectedDay ? [itinerary.days[selectedDay - 1]] : itinerary.days
     
+    // Ensure we have valid days and temples
+    if (!daysToShow || daysToShow.length === 0) {
+      console.warn('No days to show on map')
+      return
+    }
+    
     daysToShow.forEach(day => {
-      day.temples.forEach(temple => {
-        bounds.extend(new google.maps.LatLng(temple.location.lat, temple.location.lng))
-      })
+      if (day && day.temples) {
+        day.temples.forEach(temple => {
+          if (temple && temple.location) {
+            bounds.extend(new google.maps.LatLng(temple.location.lat, temple.location.lng))
+          }
+        })
+      }
     })
 
-    map.fitBounds(bounds)
+    // Only fit bounds if we have valid bounds
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds)
+    }
 
     // Create polylines from route data if available, otherwise use simple connecting lines
     const newPolylines: google.maps.Polyline[] = []
 
-    daysToShow.forEach((day, dayIndex) => {
-      if (day.temples.length > 1) {
-        // Check if we have route polylines from the Routes API
-        const hasRoutePolylines = day.routes.some(route => route.polyline)
+    // Helper function to create simple lines
+    function createSimpleLine(from: any, to: any, dayIndex: number) {
+      try {
+        if (!from || !to || !from.location || !to.location) {
+          console.warn('Invalid route data for simple line creation')
+          return
+        }
         
-        if (hasRoutePolylines) {
-          // Use actual route polylines from Routes API
-          day.routes.forEach(route => {
-            if (route.polyline) {
-              try {
+        const polyline = new google.maps.Polyline({
+          path: [
+            new google.maps.LatLng(from.location.lat, from.location.lng),
+            new google.maps.LatLng(to.location.lat, to.location.lng)
+          ],
+          geodesic: true,
+          strokeColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`,
+          strokeOpacity: 0.8,
+          strokeWeight: 4,
+          map: map
+        })
+        newPolylines.push(polyline)
+      } catch (error) {
+        console.error('Error creating simple line:', error)
+      }
+    }
+
+    daysToShow.forEach((day, dayIndex) => {
+      if (!day || !day.temples || day.temples.length <= 1) {
+        return // Skip days with no temples or single temple
+      }
+      
+      // Check if we have route polylines from the Routes API
+      const hasRoutePolylines = day.routes && day.routes.some(route => route && route.polyline)
+        
+      if (hasRoutePolylines) {
+        // Use actual route polylines from Routes API
+        day.routes.forEach(route => {
+          if (route && route.polyline) {
+            try {
+              // Check if geometry library is available
+              if (google.maps.geometry && google.maps.geometry.encoding) {
                 const decodedPath = google.maps.geometry.encoding.decodePath(route.polyline)
                 const polyline = new google.maps.Polyline({
                   path: decodedPath,
@@ -57,50 +102,47 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
                   map: map
                 })
                 newPolylines.push(polyline)
-              } catch (error) {
-                console.error('Error decoding polyline:', error)
-                // Fallback to simple line
+              } else {
+                console.warn('Google Maps Geometry library not loaded, using simple line')
+                toast({
+                  title: "Map Loading",
+                  description: "Using simplified route display while map libraries load.",
+                })
                 createSimpleLine(route.from, route.to, dayIndex)
               }
-            } else {
+            } catch (error) {
+              console.error('Error decoding polyline:', error)
+              toast({
+                variant: "destructive",
+                title: "Route Display Error",
+                description: "Unable to display detailed routes. Showing simplified paths.",
+              })
               // Fallback to simple line
               createSimpleLine(route.from, route.to, dayIndex)
             }
-          })
-        } else {
-          // Fallback: Create simple connecting lines
-          const path = day.temples.map(temple => 
-            new google.maps.LatLng(temple.location.lat, temple.location.lng)
-          )
+          } else {
+            // Fallback to simple line
+            createSimpleLine(route.from, route.to, dayIndex)
+          }
+        })
+      } else {
+        // Fallback: Create simple connecting lines
+        const path = day.temples.map(temple => 
+          new google.maps.LatLng(temple.location.lat, temple.location.lng)
+        )
 
-          const polyline = new google.maps.Polyline({
-            path: path,
-            geodesic: true,
-            strokeColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`,
-            strokeOpacity: 0.8,
-            strokeWeight: 4,
-            map: map
-          })
+        const polyline = new google.maps.Polyline({
+          path: path,
+          geodesic: true,
+          strokeColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`,
+          strokeOpacity: 0.8,
+          strokeWeight: 4,
+          map: map
+        })
 
-          newPolylines.push(polyline)
-        }
+        newPolylines.push(polyline)
       }
     })
-
-    function createSimpleLine(from: any, to: any, dayIndex: number) {
-      const polyline = new google.maps.Polyline({
-        path: [
-          new google.maps.LatLng(from.location.lat, from.location.lng),
-          new google.maps.LatLng(to.location.lat, to.location.lng)
-        ],
-        geodesic: true,
-        strokeColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)`,
-        strokeOpacity: 0.8,
-        strokeWeight: 4,
-        map: map
-      })
-      newPolylines.push(polyline)
-    }
 
     setPolylines(newPolylines)
 
@@ -109,7 +151,7 @@ function MapController({ itinerary, selectedDay }: ItineraryMapComponentProps) {
         polyline.setMap(null)
       })
     }
-  }, [map, itinerary, selectedDay])
+  }, [map, itinerary, selectedDay, toast])
 
   return null
 }
@@ -121,15 +163,30 @@ export default function ItineraryMapComponent({ itinerary, selectedDay }: Itiner
     </div>
   }
 
-  const daysToShow = selectedDay ? [itinerary.days[selectedDay - 1]] : itinerary.days
-  const allTemples = daysToShow.flatMap(day => day.temples)
+  if (!itinerary || !itinerary.days || itinerary.days.length === 0) {
+    return <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
+      <span className="text-muted-foreground">No itinerary data available</span>
+    </div>
+  }
+
+  const daysToShow = selectedDay ? [itinerary.days[selectedDay - 1]].filter(Boolean) : itinerary.days
+  const allTemples = daysToShow.flatMap(day => day && day.temples ? day.temples : [])
+
+  if (allTemples.length === 0) {
+    return <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
+      <span className="text-muted-foreground">No temples to display on map</span>
+    </div>
+  }
 
   // Calculate center point
-  const centerLat = allTemples.reduce((sum, temple) => sum + temple.location.lat, 0) / allTemples.length
-  const centerLng = allTemples.reduce((sum, temple) => sum + temple.location.lng, 0) / allTemples.length
+  const centerLat = allTemples.reduce((sum, temple) => sum + (temple.location?.lat || 0), 0) / allTemples.length
+  const centerLng = allTemples.reduce((sum, temple) => sum + (temple.location?.lng || 0), 0) / allTemples.length
 
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}>
+    <APIProvider 
+      apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+      libraries={['geometry']}
+    >
       <GoogleMap
         style={{ width: '100%', height: '100%' }}
         defaultCenter={{ lat: centerLat, lng: centerLng }}
@@ -139,26 +196,32 @@ export default function ItineraryMapComponent({ itinerary, selectedDay }: Itiner
         mapId={"a2a80a5be4606585"}
       >
         {daysToShow.map((day, dayIndex) =>
-          day.temples.map((temple, templeIndex) => (
-            <AdvancedMarker
-              key={`${day.day}-${temple.id}`}
-              position={temple.location}
-            >
-              <div className="relative">
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg"
-                  style={{ 
-                    backgroundColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)` 
-                  }}
-                >
-                  {selectedDay ? templeIndex + 1 : `${day.day}.${templeIndex + 1}`}
+          day && day.temples ? day.temples.map((temple, templeIndex) => {
+            if (!temple || !temple.location || !temple.id) {
+              return null
+            }
+            
+            return (
+              <AdvancedMarker
+                key={`${day.day}-${temple.id}`}
+                position={temple.location}
+              >
+                <div className="relative">
+                  <div 
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                    style={{ 
+                      backgroundColor: selectedDay ? '#3b82f6' : `hsl(${(dayIndex * 137.5) % 360}, 70%, 50%)` 
+                    }}
+                  >
+                    {selectedDay ? templeIndex + 1 : `${day.day}.${templeIndex + 1}`}
+                  </div>
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 px-2 py-1 bg-black/80 text-white text-xs rounded whitespace-nowrap">
+                    {temple.name || 'Unknown Temple'}
+                  </div>
                 </div>
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 px-2 py-1 bg-black/80 text-white text-xs rounded whitespace-nowrap">
-                  {temple.name}
-                </div>
-              </div>
-            </AdvancedMarker>
-          ))
+              </AdvancedMarker>
+            )
+          }) : []
         )}
         <MapController itinerary={itinerary} selectedDay={selectedDay} />
       </GoogleMap>

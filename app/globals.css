@@ -212,6 +212,24 @@
   }
 }
 
+@keyframes gentle-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes shimmer-subtle {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .fade-slide-up {
   animation: fade-slide-up 600ms var(--ease-out, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
 }
@@ -288,6 +306,21 @@
   .text-4xl { font-size: 2.25rem; }
   .text-5xl { font-size: 3rem; }
   .text-6xl { font-size: 3.75rem; }
+  
+  /* Mobile-specific location search improvements */
+  .location-search-input {
+    backdrop-filter: blur(6px);
+  }
+  
+  /* Reduce motion on mobile for better performance */
+  .journey-button {
+    transition: all 0.2s ease;
+  }
+  
+  /* Better spacing for mobile */
+  .glass {
+    backdrop-filter: blur(8px);
+  }
 }
 
 /* Safe area support for devices with notches */
@@ -474,4 +507,307 @@
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
   }
+}
+
+/* Enhanced location search styling - Mobile First */
+.location-search-input {
+  background: color-mix(in oklch, var(--color-card) 85%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-border) 60%, transparent);
+  backdrop-filter: blur(8px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Mobile hover states (touch devices) */
+@media (hover: none) {
+  .location-search-input:active {
+    border-color: color-mix(in oklch, var(--color-primary) 40%, transparent);
+    background: color-mix(in oklch, var(--color-card) 95%, transparent);
+  }
+}
+
+/* Desktop hover states */
+@media (hover: hover) {
+  .location-search-input {
+    border: 2px solid color-mix(in oklch, var(--color-border) 50%, transparent);
+    backdrop-filter: blur(12px);
+  }
+  
+  .location-search-input:hover {
+    border-color: color-mix(in oklch, var(--color-primary) 30%, transparent);
+    box-shadow: 0 8px 25px -8px color-mix(in oklch, var(--color-primary) 15%, transparent);
+  }
+}
+
+.location-search-input:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 15%, transparent);
+}
+
+/* Theme-adaptive button styling - Mobile First */
+.journey-button {
+  background: linear-gradient(135deg, var(--color-primary) 0%, color-mix(in oklch, var(--color-primary) 85%, var(--color-accent)) 100%);
+  box-shadow: 0 2px 8px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Mobile button states */
+@media (hover: none) {
+  .journey-button:active:not(:disabled) {
+    transform: scale(0.98);
+    box-shadow: 0 1px 4px color-mix(in oklch, var(--color-primary) 30%, transparent);
+  }
+}
+
+/* Desktop button states */
+@media (hover: hover) {
+  .journey-button {
+    box-shadow: 0 4px 15px color-mix(in oklch, var(--color-primary) 25%, transparent);
+  }
+  
+  .journey-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px color-mix(in oklch, var(--color-primary) 35%, transparent);
+  }
+  
+  .journey-button:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+.journey-button:disabled {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Dark theme enhancements */
+.dark .location-search-input {
+  background: color-mix(in oklch, var(--color-card) 80%, transparent);
+  border-color: color-mix(in oklch, var(--color-border) 70%, transparent);
+}
+
+.dark .location-search-input:hover {
+  background: color-mix(in oklch, var(--color-card) 90%, transparent);
+}
+
+/* AMOLED theme enhancements */
+.amoled .location-search-input {
+  background: color-mix(in oklch, var(--color-card) 60%, transparent);
+  border-color: color-mix(in oklch, var(--color-border) 80%, transparent);
+}
+
+.amoled .journey-button {
+  background: linear-gradient(135deg, var(--color-primary) 0%, color-mix(in oklch, var(--color-primary) 90%, var(--color-accent)) 100%);
+  box-shadow: 0 4px 20px color-mix(in oklch, var(--color-primary) 40%, transparent);
+}
+
+/* Subtle glow effect for interactive elements */
+@keyframes gentle-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 20px color-mix(in oklch, var(--color-primary) 30%, transparent);
+  }
+}
+
+.gentle-glow {
+  animation: gentle-glow 3s ease-in-out infinite;
+}
+
+/* Enhanced focus states for accessibility */
+.enhanced-focus:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Theme-specific search input enhancements - Mobile First */
+
+/* Light theme */
+.light .location-search-input {
+  background: color-mix(in oklch, var(--color-card) 90%, white);
+  border-color: color-mix(in oklch, var(--color-border) 50%, transparent);
+}
+
+@media (hover: hover) {
+  .light .location-search-input {
+    background: color-mix(in oklch, var(--color-card) 95%, white);
+    border-color: color-mix(in oklch, var(--color-border) 40%, transparent);
+  }
+  
+  .light .location-search-input:hover {
+    background: white;
+    border-color: color-mix(in oklch, var(--color-primary) 25%, transparent);
+  }
+}
+
+/* Dark theme */
+.dark .location-search-input {
+  background: color-mix(in oklch, var(--color-card) 75%, transparent);
+  border-color: color-mix(in oklch, var(--color-border) 80%, transparent);
+}
+
+@media (hover: hover) {
+  .dark .location-search-input {
+    background: color-mix(in oklch, var(--color-card) 80%, transparent);
+    border-color: color-mix(in oklch, var(--color-border) 70%, transparent);
+  }
+  
+  .dark .location-search-input:hover {
+    background: color-mix(in oklch, var(--color-card) 90%, transparent);
+    border-color: color-mix(in oklch, var(--color-primary) 40%, transparent);
+  }
+}
+
+/* AMOLED theme */
+.amoled .location-search-input {
+  background: color-mix(in oklch, var(--color-card) 50%, transparent);
+  border-color: color-mix(in oklch, var(--color-border) 90%, transparent);
+}
+
+@media (hover: hover) {
+  .amoled .location-search-input {
+    background: color-mix(in oklch, var(--color-card) 60%, transparent);
+    border-color: color-mix(in oklch, var(--color-border) 80%, transparent);
+  }
+  
+  .amoled .location-search-input:hover {
+    background: color-mix(in oklch, var(--color-card) 70%, transparent);
+    border-color: color-mix(in oklch, var(--color-primary) 50%, transparent);
+  }
+}
+
+/* Enhanced button states for all themes - Mobile First */
+
+/* Light theme buttons */
+.light .journey-button {
+  box-shadow: 0 2px 12px color-mix(in oklch, var(--color-primary) 15%, transparent);
+}
+
+@media (hover: hover) {
+  .light .journey-button {
+    box-shadow: 0 4px 20px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+  
+  .light .journey-button:hover:not(:disabled) {
+    box-shadow: 0 8px 30px color-mix(in oklch, var(--color-primary) 30%, transparent);
+  }
+}
+
+/* Dark theme buttons */
+.dark .journey-button {
+  box-shadow: 0 2px 15px color-mix(in oklch, var(--color-primary) 25%, transparent);
+}
+
+@media (hover: hover) {
+  .dark .journey-button {
+    box-shadow: 0 4px 20px color-mix(in oklch, var(--color-primary) 30%, transparent);
+  }
+  
+  .dark .journey-button:hover:not(:disabled) {
+    box-shadow: 0 8px 25px color-mix(in oklch, var(--color-primary) 40%, transparent);
+  }
+}
+
+/* AMOLED theme buttons */
+.amoled .journey-button {
+  background: linear-gradient(135deg, var(--color-primary) 0%, color-mix(in oklch, var(--color-primary) 90%, var(--color-accent)) 100%);
+  box-shadow: 0 3px 20px color-mix(in oklch, var(--color-primary) 35%, transparent);
+}
+
+@media (hover: hover) {
+  .amoled .journey-button {
+    box-shadow: 0 4px 25px color-mix(in oklch, var(--color-primary) 40%, transparent);
+  }
+  
+  .amoled .journey-button:hover:not(:disabled) {
+    box-shadow: 0 8px 35px color-mix(in oklch, var(--color-primary) 50%, transparent);
+  }
+}
+
+/* Popover enhancements for different themes - Mobile First */
+
+/* Mobile popover styling */
+@media (max-width: 640px) {
+  [data-radix-popper-content-wrapper] {
+    filter: drop-shadow(0 4px 12px color-mix(in oklch, black 15%, transparent));
+  }
+  
+  .amoled [data-radix-popper-content-wrapper] {
+    filter: drop-shadow(0 4px 15px color-mix(in oklch, black 30%, transparent));
+  }
+}
+
+/* Desktop popover styling */
+@media (min-width: 641px) {
+  .light [data-radix-popper-content-wrapper] {
+    filter: drop-shadow(0 10px 25px color-mix(in oklch, black 8%, transparent));
+  }
+
+  .dark [data-radix-popper-content-wrapper] {
+    filter: drop-shadow(0 10px 25px color-mix(in oklch, black 25%, transparent));
+  }
+
+  .amoled [data-radix-popper-content-wrapper] {
+    filter: drop-shadow(0 10px 35px color-mix(in oklch, black 40%, transparent));
+  }
+}
+
+/* Mobile-specific popover positioning */
+@media (max-width: 640px) {
+  [data-radix-popper-content] {
+    max-width: calc(100vw - 1rem) !important;
+    margin: 0 0.5rem;
+  }
+}
+
+/* Temple count badge styling */
+.temple-count-badge {
+  background: color-mix(in oklch, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  border: 1px solid color-mix(in oklch, var(--color-primary) 20%, transparent);
+  transition: all 0.2s ease;
+}
+
+/* Map hint button styling */
+.map-hint-button {
+  background: color-mix(in oklch, var(--color-card) 90%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-border) 50%, transparent);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.map-hint-button:hover {
+  background: var(--color-card);
+  border-color: color-mix(in oklch, var(--color-border) 80%, transparent);
+}
+
+/* Theme-specific enhancements */
+.dark .temple-count-badge {
+  background: color-mix(in oklch, var(--color-primary) 15%, transparent);
+  border-color: color-mix(in oklch, var(--color-primary) 30%, transparent);
+}
+
+.amoled .temple-count-badge {
+  background: color-mix(in oklch, var(--color-primary) 20%, transparent);
+  border-color: color-mix(in oklch, var(--color-primary) 40%, transparent);
+}
+
+.amoled .map-hint-button {
+  background: color-mix(in oklch, var(--color-card) 70%, transparent);
+  border-color: color-mix(in oklch, var(--color-border) 80%, transparent);
+}
+
+.amoled .map-hint-button:hover {
+  background: color-mix(in oklch, var(--color-card) 85%, transparent);
 }

@@ -7,12 +7,16 @@ import TempleCard from "@/components/temple-card"
 import PlannerFooter from "@/components/planner-footer"
 import { getCoordsFromCity, getTemplesNearCoords } from "@/services/google-maps"
 import { Temple } from "@/types/temple"
+import { Info } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useToast } from "@/hooks/use-toast"
 
 const DEFAULT_CENTER = { lat: 25.3176, lng: 82.9739 } // Default to Varanasi
 
 export default function DiscoverPage() {
   const params = useSearchParams()
   const router = useRouter()
+  const { toast } = useToast()
   const city = params.get("search") || "Varanasi"
   const lat = params.get("lat")
   const lng = params.get("lng")
@@ -53,10 +57,20 @@ export default function DiscoverPage() {
         } else {
           console.warn('Could not get coordinates for:', city)
           setAllTemples([])
+          toast({
+            variant: "destructive",
+            title: "Location Not Found",
+            description: `Unable to find coordinates for ${city}. Please try a different location.`,
+          })
         }
       } catch (error) {
         console.error('Error fetching temples:', error)
         setAllTemples([])
+        toast({
+          variant: "destructive",
+          title: "Search Failed",
+          description: "Unable to search for temples. Please check your connection and try again.",
+        })
       } finally {
         setLoading(false)
       }
@@ -65,14 +79,17 @@ export default function DiscoverPage() {
     if (city) {
       fetchTemples()
     }
+  }, [city, lat, lng])
 
-    // Cleanup debounce on unmount
+  // Separate cleanup effect for debounceRef
+  useEffect(() => {
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current)
+        debounceRef.current = null
       }
     }
-  }, [city, lat, lng])
+  }, [])
 
   const list = useMemo(() => {
     if (selectedTempleId) {
@@ -124,8 +141,17 @@ export default function DiscoverPage() {
       // Clear any selected temple when searching new area
       setSelectedTempleId(null)
       console.log(`Searched area around ${mapCenter.lat}, ${mapCenter.lng} and found ${temples.length} temples`)
+      toast({
+        title: "Area Search Complete",
+        description: `Found ${temples.length} temples in this area.`,
+      })
     } catch (error) {
       console.error('Error searching area:', error)
+      toast({
+        variant: "destructive",
+        title: "Search Failed",
+        description: "Unable to search this area. Please try again.",
+      })
     } finally {
       setSearchingArea(false)
     }
@@ -156,7 +182,14 @@ export default function DiscoverPage() {
         <header className="mb-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <h2 className="font-serif text-xl sm:text-2xl mobile-tight truncate">Temples in {city}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-serif text-xl sm:text-2xl mobile-tight truncate">Temples in {city}</h2>
+                {!loading && (
+                  <span className="temple-count-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                    {list.length}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground mt-1">
                 {selectedTempleId 
                   ? "Showing selected temple" 
@@ -187,6 +220,19 @@ export default function DiscoverPage() {
             onMarkerClick={setSelectedTempleId}
             onCenterChanged={handleMapCenterChange}
           />
+          
+          {/* Map Hint */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="map-hint-button absolute top-3 right-3 z-10 p-2 rounded-full shadow-sm touch-manipulation">
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-[200px] text-center">
+              <p className="text-sm">Adjust map view to find more temples in different areas</p>
+            </TooltipContent>
+          </Tooltip>
+          
           {showSearchArea && (
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 animate-in fade-in slide-in-from-top-2 duration-300">
               <button
@@ -217,7 +263,7 @@ export default function DiscoverPage() {
         <div className="space-y-4 pb-28 scroll-smooth">
           {loading
             ? Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
+                <div key={`mobile-skeleton-${i}`} className="h-28 rounded-xl bg-muted animate-pulse" />
               ))
             : list.map((t, i) => (
                 <div
@@ -250,6 +296,19 @@ export default function DiscoverPage() {
               onMarkerClick={setSelectedTempleId}
               onCenterChanged={handleMapCenterChange}
             />
+            
+            {/* Map Hint */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="map-hint-button absolute top-4 right-4 z-10 p-2.5 rounded-full shadow-sm touch-manipulation">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-[250px] text-center">
+                <p className="text-sm">Adjust map view to find more temples in different areas</p>
+              </TooltipContent>
+            </Tooltip>
+            
             {showSearchArea && (
               <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 animate-in fade-in slide-in-from-top-2 duration-300">
                 <button
@@ -279,8 +338,15 @@ export default function DiscoverPage() {
         <div className="lg:col-span-5">
           <header className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="font-serif text-2xl">Temples in {city}</h2>
-              <p className="text-sm text-muted-foreground">
+              <div className="flex items-center gap-3">
+                <h2 className="font-serif text-2xl">Temples in {city}</h2>
+                {!loading && (
+                  <span className="temple-count-badge inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium">
+                    {list.length} found
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
                 {selectedTempleId 
                   ? "Showing selected temple" 
                   : showSearchArea 
@@ -299,7 +365,7 @@ export default function DiscoverPage() {
           <div className="space-y-3 h-[calc(100dvh-168px)] lg:h-[calc(100dvh-160px)] overflow-auto pr-1">
             {loading
               ? Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-28 rounded-lg bg-muted animate-pulse" />
+                  <div key={`desktop-skeleton-${i}`} className="h-28 rounded-lg bg-muted animate-pulse" />
                 ))
               : list.map((t, i) => (
                   <div

@@ -9,6 +9,7 @@ import TransitionProvider from "@/components/transition-provider"
 import ChunkErrorHandler from "@/components/chunk-error-handler"
 import PWAInstallPrompt from "@/components/pwa-install-prompt"
 import NetworkStatus from "@/components/network-status"
+import { Toaster } from "@/components/ui/toaster"
 import { Suspense } from "react"
 
 const playfair = Playfair_Display({
@@ -106,6 +107,7 @@ export default function RootLayout({
           <NetworkStatus />
           <TransitionProvider>{children}</TransitionProvider>
           <PWAInstallPrompt />
+          <Toaster />
           <Analytics />
         </Suspense>
       </body>

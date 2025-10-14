@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
@@ -15,10 +15,12 @@ import ItineraryDayCard from "@/components/itinerary-day-card"
 import ItineraryMap from "@/components/itinerary-map"
 import { ArrowLeft, MapIcon, Calendar, Loader2, AlertCircle, Info, Settings, X, Clock, Users } from "lucide-react"
 import { motion } from "framer-motion"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ItineraryPage() {
   const params = useSearchParams()
   const router = useRouter()
+  const { toast } = useToast()
   const city = params.get("city") || "Varanasi"
   const days = Number(params.get("days") || 3)
   const templeIds = (params.get("temples") || "").split(",").filter(Boolean)
@@ -42,8 +44,11 @@ export default function ItineraryPage() {
   const [tempEndTimePreference, setTempEndTimePreference] = useState(endTimePreference)
   const [tempFixedEndTime, setTempFixedEndTime] = useState(fixedEndTime)
 
+  // Memoize templeIds array to prevent unnecessary re-renders
+  const memoizedTempleIds = useMemo(() => templeIds, [templeIds.join(",")])
+
   useEffect(() => {
-    if (templeIds.length === 0) {
+    if (memoizedTempleIds.length === 0) {
       setError("No temples selected for itinerary")
       setLoading(false)
       return
@@ -54,15 +59,20 @@ export default function ItineraryPage() {
       setError(null)
       
       try {
-        console.log(`Creating itinerary for ${templeIds.length} temples over ${days} days`)
+        console.log(`Creating itinerary for ${memoizedTempleIds.length} temples over ${customDays} days`)
         
         // Fetch temple details
-        const temples = await getTemplesByIds(templeIds)
+        const temples = await getTemplesByIds(memoizedTempleIds)
         console.log(`Fetched ${temples.length} temple details`)
         
         if (temples.length === 0) {
           throw new Error("Could not fetch temple details")
         }
+
+        toast({
+          title: "Generating Itinerary",
+          description: `Creating your ${customDays}-day journey with ${temples.length} temples...`,
+        })
 
         // Generate advanced itinerary with selected strategy and custom settings
         const plan = await generateAdvancedItinerary(temples, customDays, city, clusteringStrategy, {
@@ -73,16 +83,26 @@ export default function ItineraryPage() {
         console.log("Generated itinerary plan:", plan)
         
         setItinerary(plan)
+        toast({
+          title: "Itinerary Ready!",
+          description: `Your ${customDays}-day spiritual journey has been created successfully.`,
+        })
       } catch (error) {
         console.error("Failed to generate itinerary:", error)
-        setError(error instanceof Error ? error.message : "Failed to generate itinerary")
+        const errorMessage = error instanceof Error ? error.message : "Failed to generate itinerary"
+        setError(errorMessage)
+        toast({
+          variant: "destructive",
+          title: "Itinerary Generation Failed",
+          description: errorMessage,
+        })
       } finally {
         setLoading(false)
       }
     }
 
     createItinerary()
-  }, [templeIds.join(","), customDays, city, clusteringStrategy, startTime, endTimePreference, fixedEndTime])
+  }, [memoizedTempleIds, customDays, city, clusteringStrategy, startTime, endTimePreference, fixedEndTime])
 
   const toggleDayExpansion = (dayNumber: number) => {
     const newExpanded = new Set(expandedDays)
