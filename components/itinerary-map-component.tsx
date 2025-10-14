@@ -11,7 +11,7 @@ interface ItineraryMapComponentProps {
   accommodation?: {
     name: string
     geometry: { location: { lat: number; lng: number } }
-  }
+  } | null
 }
 
 function MapController({ itinerary, selectedDay, accommodation }: ItineraryMapComponentProps) {
