@@ -33,7 +33,7 @@ export function SiteFooter() {
               by
             </span>
             <motion.a
-              href="https://hariharen9.site"
+              href="https://hariharen.site"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-primary hover:text-accent transition-colors duration-300 relative touch-manipulation"
